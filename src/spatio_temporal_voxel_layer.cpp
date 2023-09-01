@@ -119,6 +119,9 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
   // decay param
   declareParameter("voxel_decay", rclcpp::ParameterValue(-1.0));
   node->get_parameter(name_ + ".voxel_decay", _voxel_decay);
+  // min_age_outside_frustum
+  declareParameter("min_age_outside_frustum", rclcpp::ParameterValue(-1.0));
+  node->get_parameter(name_ + ".min_age_outside_frustum", _min_age_outside_frustum);
   // whether to map or navigate
   declareParameter("mapping_mode", rclcpp::ParameterValue(false));
   node->get_parameter(name_ + ".mapping_mode", _mapping_mode);
@@ -156,7 +159,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
 
   _voxel_grid = std::make_unique<volume_grid::SpatioTemporalVoxelGrid>(
     node->get_clock(), _voxel_size, static_cast<double>(default_value_), _decay_model,
-    _voxel_decay, _publish_voxels);
+    _voxel_decay, _min_age_outside_frustum, _publish_voxels);
 
   matchSize();
 
@@ -900,6 +903,11 @@ SpatioTemporalVoxelLayer::dynamicParametersCallback(std::vector<rclcpp::Paramete
               buffer->Unlock();
             }
           }
+        } else if (name == name_ + "." + source + "." + "min_age_outside_frustum") {
+          auto node = node_.lock();
+          _voxel_grid = std::make_unique<volume_grid::SpatioTemporalVoxelGrid>(
+            node->get_clock(), _voxel_size, static_cast<double>(default_value_), _decay_model,
+            _voxel_decay, _min_age_outside_frustum, _publish_voxels);
         }
       }
     }

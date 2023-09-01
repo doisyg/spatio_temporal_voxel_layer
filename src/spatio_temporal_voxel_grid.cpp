@@ -48,10 +48,12 @@ namespace volume_grid
 /*****************************************************************************/
 SpatioTemporalVoxelGrid::SpatioTemporalVoxelGrid(
   rclcpp::Clock::SharedPtr clock,
-  const float & voxel_size, const double & background_value,
-  const int & decay_model, const double & voxel_decay, const bool & pub_voxels)
+  const float & voxel_size, const double & background_value, const int & decay_model,
+  const double & voxel_decay, const double & min_age_outside_frustum,
+  const bool & pub_voxels)
 : _clock(clock), _decay_model(decay_model), _background_value(background_value),
-  _voxel_size(voxel_size), _voxel_decay(voxel_decay), _pub_voxels(pub_voxels),
+  _voxel_size(voxel_size), _voxel_decay(voxel_decay),
+  _min_age_outside_frustum(min_age_outside_frustum), _pub_voxels(pub_voxels),
   _grid_points(std::make_unique<std::vector<geometry_msgs::msg::Point32>>()),
   _cost_map(new std::unordered_map<occupany_cell, uint>)
 /*****************************************************************************/
@@ -199,9 +201,14 @@ void SpatioTemporalVoxelGrid::TemporalClearAndGenerateCostmap(
       }
     }
 
-    // if not inside any, check against nominal decay model
+    // if not inside any, check against nominal decay model, also clearing if
+    // too young.
+    // Depending on min_age_outside_frustum value and cycle frequency,
+    // a voxel too young  means that it was marked without being in a frustrum
+    // (or, edgy case, the point that marked the voxel was in a frustrum
+    // but the center of that voxel was not), in that case : clearing
     if (!frustum_cycle) {
-      if (base_duration_to_decay < 0.) {
+      if (base_duration_to_decay < 0. || time_since_marking < _min_age_outside_frustum) {
         // expired by temporal clearing
         cleared_point = true;
         if (!this->ClearGridPoint(pt_index)) {
